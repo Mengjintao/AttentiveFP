@@ -6,6 +6,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data as Data
 from scaffold import scaffold_split 
+from scipy.stats import pearsonr
+from scipy.stats import spearmanr
 
 torch.manual_seed(8)
 
@@ -126,11 +128,13 @@ def eval(model, dataset, batch_size, smiles_tasks_df, feature_dicts):
 #       test_MSE_list.extend(MSE.data.squeeze().cpu().numpy())
         test_MAE_list.extend(ae)
         test_MSE_list.extend(se)
-    return np.array(test_MAE_list).mean(), np.array(test_MSE_list).mean()
+        vpred = np.array(mol_prediction.cpu().detach().numpy()).flatten().tolist()
+    return np.array(test_MAE_list).mean(), np.array(test_MSE_list).mean(), vpred
 
 random_seed = 108 
 batch_size = 128
-epochs = 200
+epochs = 50
+loop = 5
 output_units_num = 1 # for regression model
 
 def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, direction = False):
@@ -144,6 +148,7 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
     #raw_filename = "~/jtmeng/SolCuration/org/esol/esol_org.csv"
     raw_filename = str(sys.argv[1])
     model_path = str(sys.argv[2])
+    test_raw_filename = "test_bdz.csv"
 
     torch.cuda.set_device(int (sys.argv[3]))
     start_time = str(time.ctime()).replace(':','-').replace(' ','_')
@@ -151,10 +156,35 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
     filename = raw_filename.replace('.csv','')
     prefix_filename = raw_filename.split('/')[-1].replace('.csv','')
     smiles_tasks_df = pd.read_csv(raw_filename)
+    smiles_test_df  = pd.read_csv(test_raw_filename)
     print (type(smiles_tasks_df))
     print (raw_filename)
     smilesList = smiles_tasks_df.smiles.values
+    testsmilesList = smiles_test_df.smiles.values
     print("number of all smiles: ",len(smilesList))
+
+    remained_smiles = []
+    canonical_smiles_list = []
+
+    for smiles in testsmilesList:
+        try:
+            mol = Chem.MolFromSmiles(smiles)
+            remained_smiles.append(smiles)
+            canonical_smiles_list.append(Chem.MolToSmiles(Chem.MolFromSmiles(smiles), isomericSmiles=True))
+        except:
+            print(smiles)
+            pass
+
+    smiles_test_df = smiles_test_df[smiles_test_df["smiles"].isin(remained_smiles)]
+    smiles_test_df['cano_smiles']=canonical_smiles_list
+    test_feature_dicts = save_smiles_dicts(testsmilesList, filename)
+    test_remained_df  = smiles_test_df[smiles_test_df["cano_smiles"].isin(test_feature_dicts['smiles_to_atom_mask'].keys())]
+    uncovered_df = smiles_test_df.drop(test_remained_df.index)
+    print("not processed test items")
+    print (test_remained_df)
+    print (uncovered_df)
+    
+
     atom_num_dist = []
     remained_smiles = []
     canonical_smiles_list = []
@@ -194,29 +224,30 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
     seed = 5
     smiSet = remained_df["cano_smiles"].tolist()
     idxtrain, idxeval, idxtest = scaffold_split(smiSet, sizes=[0.8, 0.1, 0.1], balanced=True, seed=seed, logger=print)      
-    print (idxtrain)
-    print (idxeval)
-    print (idxtest)
 
     all_scores = []
+    eval_all_scores = []
+    vpred_tot = [ float(0) for n in range(31)]
     for random_seed in range(5):
-    #   remained_df.sample(n=len(remained_df), random_state=random_seed)    
+        #   remained_df.sample(n=len(remained_df), random_state=random_seed)    
         remained_df = remained_df.reset_index(drop=True)
         smiSet      = remained_df["cano_smiles"].tolist()
         
         idxtrain, idxeval, idxtest = scaffold_split(smiSet, sizes=[0.8, 0.1, 0.1], balanced=True, seed=random_seed, logger=print)
-        train_df = remained_df.loc(idxtrain)
-        valid_df = remained_df.loc(idxeval)
-        test_df  = remained_df.loc(idxtest)
-
-        valid_df = training_data.sample(frac=1/9, random_state=random_seed) # validation set
-        train_df = training_data.drop(valid_df.index) # train set
+        
+        train_df = remained_df.loc[idxtrain]
+        valid_df = remained_df.loc[idxeval]
+        test_df  = remained_df.loc[idxtest]
+        print (len(train_df))
+        print (len(valid_df))
+        print (len(test_df))
 
         train_df = train_df.reset_index(drop=True)
         valid_df = valid_df.reset_index(drop=True)
         test_df  = test_df.reset_index(drop=True)
+        eval_df  = smiles_test_df.reset_index(drop=True)
 
-    # print(len(test_df),sorted(test_df.cano_smiles.values))
+        # print(len(test_df),sorted(test_df.cano_smiles.values))
 
         x_atom, x_bonds, x_atom_index, x_bond_index, x_mask, smiles_to_rdkit_list = get_smiles_array([canonical_smiles_list[0]],feature_dicts)
         num_atom_features = x_atom.shape[-1]
@@ -228,8 +259,7 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
         # optimizer = optim.Adam(model.parameters(), learning_rate, weight_decay=weight_decay)
         optimizer = optim.Adam(model.parameters(), 10**-learning_rate, weight_decay=10**-weight_decay)
         # optimizer = optim.SGD(model.parameters(), 10**-learning_rate, weight_decay=10**-weight_decay)
-
-    # tensorboard = SummaryWriter(log_dir="runs/"+start_time+"_"+prefix_filename+"_"+str(fingerprint_dim)+"_"+str(p_dropout))
+        # tensorboard = SummaryWriter(log_dir="runs/"+start_time+"_"+prefix_filename+"_"+str(fingerprint_dim)+"_"+str(p_dropout))
 
         model_parameters = filter(lambda p: p.requires_grad, model.parameters())
         params = sum([np.prod(p.size()) for p in model_parameters])
@@ -247,8 +277,9 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
 
         file_name = prefix_filename + '_' + str(radius) + '_' + str(T) + '_' + str(fingerprint_dim) + '_' + str(weight_decay) + '_' + str(learning_rate)
         for epoch in range(epochs):
-            train_MAE, train_MSE = eval(model, train_df, batch_size, smiles_tasks_df, feature_dicts)
-            valid_MAE, valid_MSE = eval(model, valid_df, batch_size, smiles_tasks_df, feature_dicts)
+            s_time = time.time()
+            train_MAE, train_MSE, NULL = eval(model, train_df, batch_size, smiles_tasks_df, feature_dicts)
+            valid_MAE, valid_MSE, NULL = eval(model, valid_df, batch_size, smiles_tasks_df, feature_dicts)
 #     tensorboard.add_scalars('MAE',{'train_MAE':valid_MAE, 'test_MAE':valid_MSE}, epoch)
 #     tensorboard.add_scalars('MSE',{'train_MSE':valid_MAE, 'test_MSE':valid_MSE}, epoch)
             if train_MSE < best_param["train_MSE"]:
@@ -261,8 +292,12 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
                 torch.save(model, model_path+'/model_'+file_name+'_'+start_time+'_'+str(epoch)+'.pt')
             if (epoch - best_param["train_epoch"] >8) and (epoch - best_param["valid_epoch"] >10):        
                 break
-            print(epoch, np.sqrt(train_MSE), np.sqrt(valid_MSE))
+            test_time = time.time()-s_time
+
+            s_time = time.time()
             train(model, train_df, optimizer, loss_function, batch_size, smiles_tasks_df, feature_dicts, epoch)
+            train_time = time.time()-s_time
+            print(epoch, np.sqrt(train_MSE), np.sqrt(valid_MSE), 'train_time=', train_time, 'test_time=', test_time)
 
 # evaluate model
         best_model = torch.load(model_path+'/model_'+file_name+'_'+start_time+'_'+str(best_param["valid_epoch"])+'.pt')     
@@ -272,18 +307,43 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
 
         model.load_state_dict(best_model_wts)
         (best_model.align[0].weight == model.align[0].weight).all()
-        test_MAE, test_MSE = eval(model, test_df, batch_size, smiles_tasks_df, feature_dicts)
+        test_MAE, test_MSE, NULL = eval(model, test_df, batch_size, smiles_tasks_df, feature_dicts)
         print("best epoch:",best_param["valid_epoch"],"\n","test RMSE:",np.sqrt(test_MSE))
         all_scores.append(np.sqrt(test_MSE))
 
+        eval_test_MAE, eval_test_MSE, vpred = eval(model, eval_df, batch_size, smiles_test_df, test_feature_dicts)
+        vpred_tot = (np.array(vpred_tot) + np.array(vpred)).tolist()
+#        print("best epoch:",best_param["valid_epoch"],"\n","test RMSE:",np.sqrt(test_MSE))
+        eval_all_scores.append(np.sqrt(test_MSE))
+
     all_scores = np.array(all_scores)
+    eval_all_scores = np.array(eval_all_scores)
     print(f'fold cross validation')
     # Report scores for each fold
 #    for fold_num, scores in enumerate(all_scores):
 #        print(f'Seed {fold_num} ==> test rmse = {np.nanmean(scores):.6f}')
 
     mean_score, std_score = np.nanmean(all_scores), np.nanstd(all_scores)
+    eval_mean_score, eval_std_score = np.nanmean(eval_all_scores), np.nanstd(eval_all_scores)
     print(f'Overall test rmse = {mean_score:.6f} +/- {std_score:.6f}')
+    print(f'Evaluation test rmse = {eval_mean_score:.6f} +/- {eval_std_score:.6f}')
+
+    print (vpred_tot)
+    vpred = (np.array(vpred_tot)/loop).tolist()
+    print (vpred)
+    vtrue = smiles_test_df[tasks[0]].values
+
+    print ("pearsonr_BPU")
+    print ('pearsonrResult', pearsonr(vtrue[:12], vpred[:12]))
+    print (spearmanr(vtrue[:12], vpred[:12]))
+
+    print ("pearsonr_BDZ")
+    print ('pearsonrResult', pearsonr(vtrue[12:31], vpred[12:31]))
+    print (spearmanr(vtrue[12:31], vpred[12:31]))
+
+    print ("pearsonr_all")
+    print ('pearsonrResult', pearsonr(vtrue,vpred))
+    print (spearmanr(vtrue,vpred))
     return -1*mean_score 
 
 radius = int(sys.argv[4])
