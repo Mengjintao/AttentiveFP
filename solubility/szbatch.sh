@@ -8,11 +8,12 @@ source activate mpnn
 
 data=$1
 modelPath=$2
-radius=$3
-T=$4
-fingerprint_dim=$5
-weight_decay=$6
-learning_rate=$7
+datatype=$3
+radius=$4
+T=$5
+fingerprint_dim=$6
+weight_decay=$7
+learning_rate=$8
 
 echo 'data='$data
 echo 'modelPath='$modelPath
@@ -42,8 +43,17 @@ echo $out0
 echo $out1
 echo $out2
 
-time python runRandom.py $data0 $modelPath 1 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out0 2>&1 & 
-time python runRandom.py $data1 $modelPath 2 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out1 2>&1 & 
-time python runRandom.py $data2 $modelPath 3 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out2 2>&1 & 
+type="Random"
+if [ $datatype == $type ]
+then
+    echo $datatype
+    time python runRandom.py $data0 $modelPath 1 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out0 2>&1 & 
+    time python runRandom.py $data1 $modelPath 2 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out1 2>&1 & 
+    time python runRandom.py $data2 $modelPath 3 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out2 2>&1 & 
+else
+    echo $datatype
+    time python runScaffold.py $data0 $modelPath 1 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out0 2>&1 & 
+    time python runScaffold.py $data1 $modelPath 2 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out1 2>&1 & 
+    time python runScaffold.py $data2 $modelPath 3 $radius $T $fingerprint_dim  $weight_decay $learning_rate > $out2 2>&1 & 
+fi
 wait
- 

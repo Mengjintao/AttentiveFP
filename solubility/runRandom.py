@@ -136,7 +136,7 @@ def eval(model, dataset, batch_size, smiles_tasks_df, feature_dicts):
 random_seed = 108 
 batch_size = 128
 epochs = 180
-loop = 8
+loop = 5
 output_units_num = 1 # for regression model
 
 def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, direction = False):
@@ -150,7 +150,7 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
     #raw_filename = "~/jtmeng/SolCuration/org/esol/esol_org.csv"
     raw_filename = str(sys.argv[1])
     model_path = str(sys.argv[2])
-    test_raw_filename = "test_bdz.csv" 
+    test_raw_filename = "test_all.csv" 
 
     torch.cuda.set_device(int (sys.argv[3]))
     start_time = str(time.ctime()).replace(':','-').replace(' ','_')
@@ -234,7 +234,7 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
 
     all_scores = []
     eval_all_scores = []
-    vpred_tot = [ float(0) for n in range(31)]
+    vpred_tot = [ float(0) for n in range(48)]
     for random_seed in range(loop):
     #    remained_df.sample(n=len(remained_df), random_state=random_seed)    
         remained_df = remained_df.reset_index(drop=True)
@@ -310,6 +310,7 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
         all_scores.append(np.sqrt(test_MSE))
 
         eval_test_MAE, eval_test_MSE, vpred = eval(model, eval_df, batch_size, smiles_test_df, test_feature_dicts)
+#        print (vpred)
         vpred_tot = (np.array(vpred_tot) + np.array(vpred)).tolist()
 #        print("best epoch:",best_param["valid_epoch"],"\n","test RMSE:",np.sqrt(test_MSE))
         eval_all_scores.append(np.sqrt(test_MSE))
@@ -340,9 +341,45 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
     print ('pearsonrResult', pearsonr(vtrue[12:31], vpred[12:31]))
     print (spearmanr(vtrue[12:31], vpred[12:31]))
 
+    print ("pearsonr_8")
+    print ('pearsonrResult', pearsonr(vtrue[31:38], vpred[31:38]))
+    print (spearmanr(vtrue[31:38], vpred[31:38]))
+
+    print ("pearsonr_10")
+    print ('pearsonrResult', pearsonr(vtrue[38:48], vpred[38:48]))
+    print (spearmanr(vtrue[38:48], vpred[38:48]))
+
+    print ("pearsonr_BPU&BDZ")
+    print ('pearsonrResult', pearsonr(vtrue[:31],vpred[:31]))
+    print (spearmanr(vtrue[:31],vpred[:31]))
+
     print ("pearsonr_all")
     print ('pearsonrResult', pearsonr(vtrue,vpred))
     print (spearmanr(vtrue,vpred))
+
+    from sklearn.metrics import mean_squared_error
+    RMSE=np.sqrt(mean_squared_error(vtrue, vpred))
+
+    BPU_R2=pearsonr(vtrue[:12], vpred[:12])[0]
+    BPU_RS=spearmanr(vtrue[:12], vpred[:12])[0]
+
+    BDZ_R2=pearsonr(vtrue[12:31], vpred[12:31])[0]
+    BDZ_RS=spearmanr(vtrue[12:31], vpred[12:31])[0]
+
+    KVZ_R2=pearsonr(vtrue[31:38], vpred[31:38])[0]
+    KVZ_RS=spearmanr(vtrue[31:38], vpred[31:38])[0]
+
+    CDT_R2=pearsonr(vtrue[38:48], vpred[38:48])[0]
+    CDT_RS=spearmanr(vtrue[38:48], vpred[38:48])[0]
+
+    UZ_R2=pearsonr(vtrue[:31],vpred[:31])[0]
+    UZ_RS=spearmanr(vtrue[:31],vpred[:31])[0]
+
+    ALL_R2=pearsonr(vtrue,vpred)[0]
+    ALL_RS=spearmanr(vtrue,vpred)[0]
+
+    print("r2_rs_results", BPU_R2, BDZ_R2, KVZ_R2, CDT_R2, UZ_R2, ALL_R2, BPU_RS, BDZ_RS, KVZ_RS, CDT_RS, UZ_RS, ALL_RS, RMSE)
+
     return -1*mean_score 
 
 radius = int(sys.argv[4])

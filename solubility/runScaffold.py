@@ -133,7 +133,7 @@ def eval(model, dataset, batch_size, smiles_tasks_df, feature_dicts):
 
 random_seed = 108 
 batch_size = 128
-epochs = 50
+epochs = 180
 loop = 5
 output_units_num = 1 # for regression model
 
@@ -148,7 +148,7 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
     #raw_filename = "~/jtmeng/SolCuration/org/esol/esol_org.csv"
     raw_filename = str(sys.argv[1])
     model_path = str(sys.argv[2])
-    test_raw_filename = "test_bdz.csv"
+    test_raw_filename = "test_all.csv"
 
     torch.cuda.set_device(int (sys.argv[3]))
     start_time = str(time.ctime()).replace(':','-').replace(' ','_')
@@ -227,7 +227,7 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
 
     all_scores = []
     eval_all_scores = []
-    vpred_tot = [ float(0) for n in range(31)]
+    vpred_tot = [ float(0) for n in range(48)]
     for random_seed in range(5):
         #   remained_df.sample(n=len(remained_df), random_state=random_seed)    
         remained_df = remained_df.reset_index(drop=True)
@@ -341,9 +341,23 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
     print ('pearsonrResult', pearsonr(vtrue[12:31], vpred[12:31]))
     print (spearmanr(vtrue[12:31], vpred[12:31]))
 
+    print ("pearsonr_8")
+    print ('pearsonrResult', pearsonr(vtrue[31:38], vpred[31:38]))
+    print (spearmanr(vtrue[31:38], vpred[31:38]))
+      
+    print ("pearsonr_10")
+    print ('pearsonrResult', pearsonr(vtrue[38:48], vpred[38:48]))
+    print (spearmanr(vtrue[38:48], vpred[38:48]))
+    
+    print ("pearsonr_BPU&BDZ")
+    print ('pearsonrResult', pearsonr(vtrue[:31],vpred[:31]))
+    print (spearmanr(vtrue[:31],vpred[:31]))
+    
     print ("pearsonr_all")
     print ('pearsonrResult', pearsonr(vtrue,vpred))
     print (spearmanr(vtrue,vpred))
+
+
     return -1*mean_score 
 
 radius = int(sys.argv[4])

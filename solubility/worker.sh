@@ -4,6 +4,7 @@ hidsize=(9 11 13)
 
 data=$1
 modelPath=$2
+datatype=$3
 
 for radius in 2 4 6
 do
@@ -15,7 +16,7 @@ do
                         do
                         	for learning_rate in 2 5 
                         	do
-					sbatch -p szsc szbatch.sh $data $modelPath $radius $T $fingerprint_dim $weight_decay $learning_rate 	
+					sbatch -p szsc szbatch.sh $data $modelPath $datatype $radius $T $fingerprint_dim $weight_decay $learning_rate 	
 				#	$sh szbatch.sh $data $modelPath $radius $T $fingerprint_dim $weight_decay $learning_rate
 				done
 			done

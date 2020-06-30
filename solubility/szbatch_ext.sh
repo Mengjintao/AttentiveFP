@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=AttentiveFP     # create a short name for your job
 #SBATCH --cpus-per-task=32       # cpu-cores per task (>1 if multi-threaded tasks)
+#SBATCH --gres=dcu:4
 #SBATCH --mem-per-cpu=2G       	# memory per cpu-core
 #SBATCH --time=150:00:00         # total run time limit (HH:MM:SS)
 
@@ -25,9 +26,9 @@ mkdir $modelPath
 logPath=$modelPath'/'$data'_'$radius'_'$T'_'$weight_decay
 echo 'logPath='$logPath
 
-data0='~/jtmeng/SolCuration/org/'$data'/'$data'_org.csv'
-data1='~/jtmeng/SolCuration/clean/'$data'_stand.csv'
-data2='~/jtmeng/SolCuration/cure1/'$data'_cure.csv'
+data0='~/jtmeng/SolCuration_new/org/'$data'/'$data'_org.csv'
+data1='~/jtmeng/SolCuration_new/clean/'$data'_stand.csv'
+data2='~/jtmeng/SolCuration_new/cure1/'$data'_cure.csv'
 
 out0=$logPath'_org.newout'
 out1=$logPath'_cln.newout'
