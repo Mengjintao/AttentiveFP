@@ -16,8 +16,8 @@ do
                         do
 #                        	for learning_rate in 2 5 
 #                        	do
-					sbatch -p szsc szbatch_ext.sh $data $modelPath $datatype $radius $T $weight_decay 0
-					sbatch -p szsc szbatch_ext.sh $data $modelPath $datatype $radius $T $weight_decay 1
+#					sbatch -p szsc szbatch_ext.sh $data $modelPath $datatype $radius $T $weight_decay 0
+#					sbatch -p szsc szbatch_ext.sh $data $modelPath $datatype $radius $T $weight_decay 1
 					sbatch -p szsc szbatch_ext.sh $data $modelPath $datatype $radius $T $weight_decay 2
 				#	$sh szbatch.sh $data $modelPath $radius $T $fingerprint_dim $weight_decay $learning_rate
 #				done
