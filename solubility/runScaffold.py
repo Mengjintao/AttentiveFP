@@ -285,9 +285,11 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
             if train_MSE < best_param["train_MSE"]:
                 best_param["train_epoch"] = epoch
                 best_param["train_MSE"] = train_MSE
+                best_param["train_model"] = model
             if valid_MSE < best_param["valid_MSE"]:
                 best_param["valid_epoch"] = epoch
                 best_param["valid_MSE"] = valid_MSE
+                best_param["valid_model"] = model
 #           if valid_MSE < 0.35:
                 torch.save(model, model_path+'/model_'+file_name+'_'+start_time+'_'+str(epoch)+'.pt')
             if (epoch - best_param["train_epoch"] >8) and (epoch - best_param["valid_epoch"] >10):        
@@ -300,7 +302,9 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
             print(epoch, np.sqrt(train_MSE), np.sqrt(valid_MSE), 'train_time=', train_time, 'test_time=', test_time)
 
 # evaluate model
-        best_model = torch.load(model_path+'/model_'+file_name+'_'+start_time+'_'+str(best_param["valid_epoch"])+'.pt')     
+#        best_model = torch.load(model_path+'/model_'+file_name+'_'+start_time+'_'+str(best_param["valid_epoch"])+'.pt')     
+        best_model = best_param["valid_model"]
+        torch.save(best_model, model_path+'/model_'+file_name+'_'+start_time+'_'+str(best_param["valid_epoch"])+'.pt')
 
         best_model_dict = best_model.state_dict()
         best_model_wts = copy.deepcopy(best_model_dict)

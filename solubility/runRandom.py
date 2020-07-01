@@ -135,8 +135,8 @@ def eval(model, dataset, batch_size, smiles_tasks_df, feature_dicts):
 
 random_seed = 108 
 batch_size = 128
-epochs = 180
-loop = 5
+epochs = 5
+loop = 2
 output_units_num = 1 # for regression model
 
 def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, direction = False):
@@ -274,8 +274,10 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
         best_param ={}
         best_param["train_epoch"] = 0
         best_param["valid_epoch"] = 0
+#        best_param["valid_model"] = 0
         best_param["train_MSE"] = 9e8
         best_param["valid_MSE"] = 9e8
+#        best_param["valid_model"] = 0
 
         file_name = prefix_filename + '_' + str(radius) + '_' + str(T) + '_' + str(fingerprint_dim) + '_' + str(weight_decay) + '_' + str(learning_rate)
         for epoch in range(epochs):
@@ -285,11 +287,13 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
             if train_MSE < best_param["train_MSE"]:
                 best_param["train_epoch"] = epoch
                 best_param["train_MSE"] = train_MSE
+                best_param["train_model"] = model
             if valid_MSE < best_param["valid_MSE"]:
                 best_param["valid_epoch"] = epoch
                 best_param["valid_MSE"] = valid_MSE
+                best_param["valid_model"] = model
 #           if valid_MSE < 0.35:
-                torch.save(model, model_path+'/model_'+file_name+'_'+start_time+'_'+str(epoch)+'.pt')
+#                torch.save(model, model_path+'/model_'+file_name+'_'+start_time+'_'+str(epoch)+'.pt')
             if (epoch - best_param["train_epoch"] >8) and (epoch - best_param["valid_epoch"] >10):        
                 break
             test_time = time.time()-s_time
@@ -299,7 +303,9 @@ def run(radius, T, fingerprint_dim, weight_decay, learning_rate, p_dropout, dire
             train_time = time.time()-s_time
             print(epoch, np.sqrt(train_MSE), np.sqrt(valid_MSE), 'train_time=', train_time, 'test_time=', test_time)
 
-        best_model = torch.load(model_path+'/model_'+file_name+'_'+start_time+'_'+str(best_param["valid_epoch"])+'.pt')     
+#        best_model = torch.load(model_path+'/model_'+file_name+'_'+start_time+'_'+str(best_param["valid_epoch"])+'.pt')     
+        best_model = best_param["valid_model"]
+        torch.save(best_model, model_path+'/model_'+file_name+'_'+start_time+'_'+str(best_param["valid_epoch"])+'.pt')
         best_model_dict = best_model.state_dict()
         best_model_wts = copy.deepcopy(best_model_dict)
 
